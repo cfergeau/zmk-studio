@@ -1,0 +1,31 @@
+id: dev.zmk.Studio
+
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+
+command: zmk-studio
+finish-args:
+  - --socket=wayland # Permission needed to show the window
+  - --socket=fallback-x11 # Permission needed to show the window
+  - --device=all # need access to serial devices (keyboard)
+  - --allow=bluetooth
+  - --share=ipc
+
+modules:
+  - name: binary
+    buildsystem: simple
+    sources:
+      - type: file
+        url: https://github.com/zmkfirmware/zmk-studio/releases/download/v0.3.1/ZMK.Studio_0.3.1_amd64.deb
+        sha256: 7a4c640d0c9d200de4fcb30a02082d642d54e741c7fcdb279866f48eaefa1289
+        only-arches: [x86_64] #This source is only used on x86_64 Computers
+    build-commands:
+      - ar -x *.deb
+      - tar -xf data.tar.gz
+      - 'install -Dm755 usr/bin/zmk-studio /app/bin/zmk-studio'
+      - install -Dm644 "usr/share/applications/ZMK Studio.desktop" /app/share/applications/dev.zmk.Studio.desktop
+      - sed -i 's/Icon=app/Icon=dev.zmk.Studio/' /app/share/applications/dev.zmk.Studio.desktop
+      - install -Dm644 usr/share/icons/hicolor/128x128/apps/zmk-studio.png /app/share/icons/hicolor/128x128/apps/dev.zmk.Studio.png
+      - install -Dm644 usr/share/icons/hicolor/32x32/apps/zmk-studio.png /app/share/icons/hicolor/32x32/apps/dev.zmk.Studio.png
+      - install -Dm644 usr/share/icons/hicolor/256x256@2/apps/zmk-studio.png /app/share/icons/hicolor/256x256@2/apps/dev.zmk.Studio.png
