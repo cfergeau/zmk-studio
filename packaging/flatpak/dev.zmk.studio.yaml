@@ -35,6 +35,8 @@ modules:
       # This command must be run before attempting a flatpak build
       # flatpak-cargo-generator.py -d ./src-tauri/Cargo.lock -o flatpak/cargo-sources.json
       - cargo-sources.json
+      - type: patch
+        path: 0001-Hacky-patch-to-allow-building-offline.patch
     build-options:
       env:
         CARGO_HOME: /run/build/zmk-studio/cargo
