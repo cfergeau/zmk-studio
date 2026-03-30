@@ -3,6 +3,9 @@ id: dev.zmk.Studio
 runtime: org.gnome.Platform
 runtime-version: '50'
 sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node20
 
 command: zmk-studio
 finish-args:
@@ -10,22 +13,52 @@ finish-args:
   - --socket=fallback-x11 # Permission needed to show the window
   - --device=all # need access to serial devices (keyboard)
   - --allow=bluetooth
-  - --share=ipc
+  - --share=ipc # Needed for performance reasons if the app fallbacks to X11
+
+
+build-options:
+  append-path: /usr/lib/sdk/node20/bin:/usr/lib/sdk/rust-stable/bin
 
 modules:
-  - name: binary
+  - name: zmk-studio
     buildsystem: simple
     sources:
-      - type: file
-        url: https://github.com/zmkfirmware/zmk-studio/releases/download/v0.3.1/ZMK.Studio_0.3.1_amd64.deb
-        sha256: 7a4c640d0c9d200de4fcb30a02082d642d54e741c7fcdb279866f48eaefa1289
-        only-arches: [x86_64] #This source is only used on x86_64 Computers
+      - type: git
+        url: https://github.com/zmkfirmware/zmk-studio
+        tag: v0.3.1
+        commit: b5888d9c86bd2fdc50212ad323779dad402ba50b
+      # pipx install git+https://github.com/flatpak/flatpak-builder-tools.git#subdirectory=node
+      # the version from pip3 install does not work
+      # This command must be run before attempting a flatpak build
+      # flatpak-node-generator npm -o packaging/flatpak/node-sources.json package-lock.json
+      - node-sources.json
+      # This command must be run before attempting a flatpak build
+      # flatpak-cargo-generator.py -d ./src-tauri/Cargo.lock -o flatpak/cargo-sources.json
+      - cargo-sources.json
+    build-options:
+      env:
+        CARGO_HOME: /run/build/zmk-studio/cargo
+        XDG_CACHE_HOME: /run/build/zmk-studio/flatpak-node/cache
+        npm_config_cache: /run/build/zmk-studio/flatpak-node/npm-cache
+        npm_config_offline: "true"
+        # Required so that packages are sorted in the C order (capital letters first)
+        # by shelm when generating registry.dat
+        LC_ALL: C.utf8
     build-commands:
-      - ar -x *.deb
-      - tar -xf data.tar.gz
-      - 'install -Dm755 usr/bin/zmk-studio /app/bin/zmk-studio'
-      - install -Dm644 "usr/share/applications/ZMK Studio.desktop" /app/share/applications/dev.zmk.Studio.desktop
-      - sed -i 's/Icon=app/Icon=dev.zmk.Studio/' /app/share/applications/dev.zmk.Studio.desktop
-      - install -Dm644 usr/share/icons/hicolor/128x128/apps/zmk-studio.png /app/share/icons/hicolor/128x128/apps/dev.zmk.Studio.png
-      - install -Dm644 usr/share/icons/hicolor/32x32/apps/zmk-studio.png /app/share/icons/hicolor/32x32/apps/dev.zmk.Studio.png
-      - install -Dm644 usr/share/icons/hicolor/256x256@2/apps/zmk-studio.png /app/share/icons/hicolor/256x256@2/apps/dev.zmk.Studio.png
+      # Node packages
+      - npm ci --offline --legacy-peer-deps
+      # Rust packages
+      - cargo --offline fetch --manifest-path src-tauri/Cargo.toml --verbose
+      # Compile the app without creating any bundle
+      - npm run --offline tauri build -- --no-bundle
+
+      - install -Dm755 'src-tauri/target/release/zmk-studio' '/app/bin/zmk-studio'
+      #- install -Dm644 "usr/share/applications/ZMK Studio.desktop" /app/share/applications/dev.zmk.Studio.desktop
+      #- sed -i 's/Icon=app/Icon=dev.zmk.Studio/' /app/share/applications/dev.zmk.Studio.desktop
+      # ls .flatpak-builder/build/zmk-studio/src-tauri/icons/
+# 128x128@2x.png  32x32.png  icon.ico  Square107x107Logo.png  Square150x150Logo.png  Square30x30Logo.png    Square44x44Logo.png  Square89x89Logo.png
+# 128x128.png     icon.icns  icon.png  Square142x142Logo.png  Square284x284Logo.png  Square310x310Logo.png  Square71x71Logo.png  StoreLogo.png
+
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/dev.zmk.Studio.png
+      - install -Dm644 src-tauri/icons/32x32.png /app/share/icons/hicolor/32x32/apps/dev.zmk.Studio.png
+      - install -Dm644 src-tauri/icons/128x128@2x.png /app/share/icons/hicolor/128x128@2/apps/dev.zmk.Studio.png
